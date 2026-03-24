@@ -1,12 +1,10 @@
 // UpdateUserRequest.cs - DTO for updating a user
-// This DTO is compliant with ADR-004 to show contrast.
 using System.ComponentModel.DataAnnotations;
 
 namespace SampleApi.DTOs
 {
     /// <summary>
     /// Request model for updating an existing user.
-    /// This model is ADR-004 compliant (has validation attributes).
     /// </summary>
     public class UpdateUserRequest
     {
