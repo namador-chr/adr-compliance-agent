@@ -1,0 +1,24 @@
+flowchart TD
+    A([Start]) --> B[Discover Files\nlist_files ADR dir\nlist_files repo dir]
+
+    B --> C{For each ADR}
+
+    C --> D[Read ADR Rules\nread_file adr_path]
+    D --> E[Read Code Files\nread_file each .cs file]
+    E --> F[Analysis\nCheck each rule\nagainst the code]
+
+    F --> G{More ADRs?}
+    G -- Yes --> C
+    G -- No --> H[Reflection Step\nReview all results\nfor missed violations\nor false positives]
+
+    H --> I[Re-read code files\nif needed for verification]
+    I --> J[Update results]
+
+    J --> K[Print Console Report\nCOMPLIANT / NOT COMPLIANT\nper ADR with evidence]
+    K --> L[Save compliance_report.json]
+    L --> M([End])
+
+    style A fill:#4CAF50,color:#fff
+    style M fill:#4CAF50,color:#fff
+    style H fill:#FF9800,color:#fff
+    style F fill:#2196F3,color:#fff
