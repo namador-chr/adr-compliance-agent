@@ -18,7 +18,7 @@ Supported providers (set via environment variables):
 Usage:
   # Gemini (default)
   $env:LLM_PROVIDER = "gemini";  $env:LLM_API_KEY = "AIza..."
-  $env:LLM_MODEL = "gemini-2.0-flash"   # or gemini-1.5-pro, gemini-2.5-pro-exp-03-25 etc.
+  $env:LLM_MODEL = "gemini-3.1-flash-lite-preview"
   python main.py
 
   # GPT4All (fully local — no API key needed)

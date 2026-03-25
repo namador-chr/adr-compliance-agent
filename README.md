@@ -82,7 +82,7 @@ python main.py
 
 | Provider | Default Model                               |
 |----------|---------------------------------------------|
-| gemini   | `gemini-2.0-flash`                          |
+| gemini   | `gemini-3.1-flash-lite-preview`                          |
 | gpt4all  | `Meta-Llama-3-8B-Instruct.Q4_0.gguf`       |
 
 ## How It Works
