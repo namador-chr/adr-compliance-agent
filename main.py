@@ -213,15 +213,6 @@ class BaseLLMClient(abc.ABC):
         """
         ...
 
-    def complete_json(self, messages: list[dict]) -> str:
-        """
-        JSON-mode completion: ask the model to respond with valid JSON only.
-        Default implementation: plain text completion with a strong JSON prompt.
-        Override in subclasses that have a native JSON mode for guaranteed output.
-        """
-        response = self.complete(messages)
-        return response.content or ""
-
 
 # ---------------------------------------------------------------------------
 # Provider: OpenAI
@@ -269,18 +260,6 @@ class OpenAIClient(BaseLLMClient):
             tool_calls=tool_calls,
             raw_message=raw,
         )
-
-    def complete_json(self, messages: list[dict]) -> str:
-        """
-        Uses OpenAI's native response_format=json_object mode — guaranteed valid JSON output.
-        No tool calls: this is a pure formatting call.
-        """
-        response = self._client.chat.completions.create(
-            model=self._model,
-            messages=messages,
-            response_format={"type": "json_object"},
-        )
-        return response.choices[0].message.content or ""
 
 
 # ---------------------------------------------------------------------------
@@ -405,27 +384,6 @@ class GeminiClient(BaseLLMClient):
             tool_calls=[],
             raw_message={"role": "assistant", "content": text},
         )
-
-    def complete_json(self, messages: list[dict]) -> str:
-        """
-        Uses Gemini's response_mime_type='application/json' for guaranteed JSON output.
-        No tool calls: this is a pure formatting call.
-        """
-        system_msg = next((m["content"] for m in messages if m["role"] == "system"), "")
-        user_parts = [m["content"] for m in messages
-                      if m["role"] in ("user", "assistant") and m.get("content")]
-
-        config = self._types.GenerateContentConfig(
-            system_instruction=system_msg or None,
-            response_mime_type="application/json",
-        )
-
-        response = self._client.models.generate_content(
-            model=self._model_name,
-            contents=user_parts,
-            config=config,
-        )
-        return response.text or ""
 
 
 # ---------------------------------------------------------------------------
@@ -721,72 +679,12 @@ def analyze_adr(
 
 
 # ---------------------------------------------------------------------------
-# Phase 3: Reflection + JSON formatting
+# Phase 3: Reflection + Markdown Formatting
 #
-# This is the ONLY phase that produces JSON. It receives the free-form
-# Markdown from Phase 2 and is responsible for:
+# This phase receives the free-form Markdown from Phase 2 and is responsible for:
 #   a) Reviewing the analysis for accuracy (missed violations, false positives)
-#   b) Producing the final structured JSON via provider JSON modes + retry loop
+#   b) Producing the final polished Markdown report.
 # ---------------------------------------------------------------------------
-
-# The strict JSON schema given exclusively to Phase 3
-_JSON_SCHEMA_EXAMPLE = """\
-[
-  {
-    "adr": "<ADR filename, e.g. ADR-001-restful-resource-naming.md>",
-    "status": "COMPLIANT" or "NOT COMPLIANT",
-    "violations": [
-      {
-        "rule": "<rule ID, e.g. RULE-001-A>",
-        "description": "<what the rule requires>",
-        "finding": "<what was found in the code>",
-        "file": "<source filename>",
-        "snippet": "<quoted code snippet as evidence>"
-      }
-    ],
-    "compliant_aspects": ["<what IS compliant>"],
-    "summary": "<one paragraph summary>"
-  }
-]"""
-
-_JSON_RULES = (
-    "Rules for the JSON output:\n"
-    "- Output a JSON ARRAY, one object per ADR, in the same order as the analyses.\n"
-    "- If an ADR has no violations, set status to COMPLIANT and violations to [].\n"
-    "- Always include at least one compliant_aspects entry.\n"
-    "- Quote real code snippets from the files as evidence for every violation.\n"
-    "- Output ONLY the JSON array — no preamble, no markdown fences, no trailing text."
-)
-
-
-def _extract_json(raw: str) -> Optional[list[dict]]:
-    """
-    Try to parse a JSON array from the model response.
-    Strips markdown fences if present, attempts to locate the first '[' array start.
-    Returns the parsed list or None if it cannot be parsed.
-    """
-    cleaned = raw.strip()
-
-    # Strip markdown fences
-    if cleaned.startswith("```"):
-        cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else cleaned[3:]
-        cleaned = cleaned.rsplit("```", 1)[0].strip()
-
-    # Find the start of a JSON array (handles accidental preamble text)
-    bracket = cleaned.find("[")
-    if bracket != -1:
-        cleaned = cleaned[bracket:]
-
-    try:
-        parsed = json.loads(cleaned)
-        if isinstance(parsed, list):
-            return parsed
-        if isinstance(parsed, dict):
-            return [parsed]  # model returned a single object instead of array
-    except json.JSONDecodeError:
-        pass
-    return None
-
 
 def reflect_on_results(
     client: BaseLLMClient,
@@ -794,20 +692,18 @@ def reflect_on_results(
     adr_names: list[str],
     repo_files: list[str],
     react_mode: bool = False,
-    max_retries: int = 3,
-) -> list[dict]:
+) -> str:
     """
-    Phase 3 — Reflection and structured JSON formatting.
+    Phase 3 — Reflection and Markdown Report Generation.
 
     Receives free-form Markdown analyses from Phase 2 and:
       1. Reviews them for missed violations or false positives.
-      2. Produces the final structured JSON via provider JSON mode (if available)
-         or a retry loop with parse validation (for providers without JSON mode).
+      2. Produces the final polished Markdown report summarizing all findings.
 
-    Returns a list of compliance result dicts, one per ADR.
+    Returns the full Markdown report as a string.
     """
     print(f"\n{'='*60}")
-    print("Reflection Step: reviewing and formatting final report...")
+    print("Reflection Step: reviewing and formatting final Markdown report...")
     print(f"{'='*60}")
 
     analyses_block = "\n\n".join(
@@ -820,18 +716,23 @@ def reflect_on_results(
         "Your two responsibilities:\n"
         "1. REVIEW: Check each analysis for missed violations or false positives.\n"
         "   You may call read_file(path) to re-read any code file for verification.\n"
-        "2. FORMAT: Output the final corrected result as a strict JSON array.\n\n"
-        f"Required JSON structure:\n{_JSON_SCHEMA_EXAMPLE}\n\n"
-        f"{_JSON_RULES}"
+        "2. FORMAT: Output a final, polished, highly readable Markdown report summarizing "
+        "   the compliance of the codebase against all provided ADRs.\n\n"
+        "The report should include:\n"
+        "- An executive summary at the top.\n"
+        "- A detailed section for each ADR, clearly stating whether it is COMPLIANT or NOT COMPLIANT.\n"
+        "- Clear descriptions of any violations found, quoting relevant code snippets.\n"
+        "- Clear descriptions of compliant aspects.\n\n"
+        "Do NOT output JSON. Output ONLY the polished Markdown report."
     )
     if react_mode:
         system += "\n" + REACT_TOOL_INSTRUCTIONS
 
     user = (
-        f"Here are the Markdown analyses for each ADR:\n\n{analyses_block}\n\n"
+        f"Here are the drafts of the Markdown analyses for each ADR:\n\n{analyses_block}\n\n"
         f"Code files available for re-reading if needed:\n{json.dumps(repo_files, indent=2)}\n\n"
         "Review the analyses, verify uncertain findings by re-reading code files if needed, "
-        "then output the final JSON array."
+        "then output the final polished Markdown report."
     )
 
     messages = [
@@ -839,97 +740,29 @@ def reflect_on_results(
         {"role": "user",   "content": user},
     ]
 
-    # ── Strategy 1: Use provider-native JSON mode (guaranteed valid JSON) ────
-    # Providers that override complete_json() get reliable JSON without retries.
-    # For providers that don't (HF, GPT4All), complete_json() falls back to
-    # complete() and we apply the retry loop below.
-
-    for attempt in range(1, max_retries + 1):
-        if attempt == 1:
-            raw = client.complete_json(messages)
-        else:
-            # ── Strategy 2: Retry loop with escalating correction prompt ────
-            print(f"  [reflect] JSON parse failed — retry {attempt}/{max_retries}")
-            correction = (
-                "Your previous response was not valid JSON. "
-                "Output ONLY the raw JSON array with no preamble or markdown fences. "
-                f"Required structure:\n{_JSON_SCHEMA_EXAMPLE}"
-            )
-            retry_messages = messages + [
-                {"role": "assistant", "content": raw},
-                {"role": "user",      "content": correction},
-            ]
-            raw = client.complete_json(retry_messages)
-
-        result = _extract_json(raw)
-        if result is not None:
-            print(f"  [reflect] JSON parsed successfully (attempt {attempt})")
-            return result
-
-    # ── Strategy 3: Fallback — return minimal dicts so the report renders ────
-    print("[Warning] All reflection attempts failed — returning raw Markdown as summary.")
-    return [
-        {
-            "adr":               name,
-            "status":            "PARSE_ERROR",
-            "violations":        [],
-            "compliant_aspects": [],
-            "summary":           md[:500] + "..." if len(md) > 500 else md,
-        }
-        for name, md in zip(adr_names, markdown_analyses)
-    ]
+    # For Phase 3, we run the agent normally, allowing it to use tools to review,
+    # and eventually it will return its final markdown report.
+    return run_agent(client, messages)
 
 
 # ---------------------------------------------------------------------------
 # Phase 4: Report
 # ---------------------------------------------------------------------------
 
-def print_report(results: list[dict]) -> None:
-    """Print a human-readable compliance report to stdout."""
+def print_report(report_md: str) -> None:
+    """Print the human-readable compliance report to stdout."""
     print("\n")
     print("╔" + "═" * 70 + "╗")
     print("║" + " ADR COMPLIANCE REPORT ".center(70) + "║")
     print("╚" + "═" * 70 + "╝")
-
-    total           = len(results)
-    compliant_count = sum(1 for r in results if r.get("status") == "COMPLIANT")
-    non_compliant   = total - compliant_count
-
-    print(f"\n📊 Summary: {compliant_count}/{total} COMPLIANT, {non_compliant}/{total} NOT COMPLIANT\n")
-
-    for result in results:
-        adr    = result.get("adr", "Unknown ADR")
-        status = result.get("status", "UNKNOWN")
-        icon   = "✅" if status == "COMPLIANT" else "❌"
-
-        print(f"\n{icon} {adr}")
-        print(f"   Status : {status}")
-        print(f"   Summary: {result.get('summary', 'N/A')}")
-
-        violations = result.get("violations", [])
-        if violations:
-            print(f"\n   Violations ({len(violations)}):")
-            for v in violations:
-                print(f"   ── Rule       : {v.get('rule', 'N/A')}")
-                print(f"      Description: {v.get('description', 'N/A')}")
-                print(f"      Finding    : {v.get('finding', 'N/A')}")
-                print(f"      File       : {v.get('file', 'N/A')}")
-                snippet = v.get("snippet", "")
-                if snippet:
-                    indented = "\n".join("      │ " + line for line in snippet.splitlines())
-                    print(f"      Code :\n{indented}")
-                print()
-
-        for aspect in result.get("compliant_aspects", []):
-            print(f"   ✓ {aspect}")
-
-        print(f"\n{'─' * 72}")
+    print("\n" + report_md + "\n")
+    print("─" * 72)
 
 
-def save_report(results: list[dict], output_path: str = "compliance_report.json") -> None:
-    """Save the full structured results to a JSON file."""
+def save_report(report_md: str, output_path: str = "compliance_report.md") -> None:
+    """Save the full Markdown report to a file."""
     with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2)
+        f.write(report_md)
     print(f"\n📄 Full report saved to: {output_path}")
 
 
@@ -962,14 +795,14 @@ def main() -> None:
 
     adr_names = [Path(f).name for f in adr_files]
 
-    # Phase 3: Reflection + structured JSON output (provider JSON mode + retry loop)
-    results = reflect_on_results(
+    # Phase 3: Reflection + formatted Markdown output
+    final_report = reflect_on_results(
         client, markdown_analyses, adr_names, repo_files, react_mode=react_mode
     )
 
     # Phase 4: Report
-    print_report(results)
-    save_report(results)
+    print_report(final_report)
+    save_report(final_report)
 
     print("\n✅ ADR Compliance Agent finished.")
 
