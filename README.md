@@ -7,7 +7,11 @@ Now **LLM-agnostic** — works with Gemini or GPT4All via environment variables.
 
 ```text
 adr-compliance-agent/
-├── main.py                    # Python agent (entry point)
+├── config.py                  # Environment config and paths
+├── tools.py                   # File I/O tools and LLM tool schemas
+├── prompts.py                 # System instructions for LLM prompt phases
+├── llm_clients.py             # Provider-specific SDKs and adapters
+├── main.py                    # Python agent (entry point orchestrator)
 ├── architecture.mmd           # Mermaid diagram of agent workflow
 ├── compliance_report.md       # Generated after running the agent
 └── data/
