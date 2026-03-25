@@ -91,9 +91,9 @@ python main.py
 
 ```text
 ┌─────────────────────────────────────────────┐
-│              Agent Logic (main.py)           │
+│              Agent Logic (main.py)          │
 │  analyze_adr()  reflect_on_results()        │
-│              run_agent()                     │
+│              run_agent()                    │
 └──────────────────┬──────────────────────────┘
                    │ calls  .complete(messages)
           ┌────────▼────────┐
