@@ -1,0 +1,14 @@
+# Core (default provider)
+openai>=1.0.0
+
+# Gemini provider
+# pip install google-generativeai
+# google-generativeai>=0.7.0
+
+# Hugging Face provider
+# pip install huggingface_hub
+# huggingface_hub>=0.23.0
+
+# GPT4All provider (local inference)
+# pip install gpt4all
+# gpt4all>=2.0.0
