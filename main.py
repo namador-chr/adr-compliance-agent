@@ -9,26 +9,16 @@ Architecture: "Reasoning first, Formatting second"
   Phase 3 — JSON-only formatting call (provider JSON modes + retry loop)
 
 Supported providers (set via environment variables):
-  LLM_PROVIDER = "openai"   (default) — requires: pip install openai
-  LLM_PROVIDER = "gemini"             — requires: pip install google-genai
-  LLM_PROVIDER = "hf"                 — requires: pip install huggingface_hub
+  LLM_PROVIDER = "gemini"   (default) — requires: pip install google-genai
   LLM_PROVIDER = "gpt4all"            — requires: pip install gpt4all
 
   LLM_API_KEY  = your API key (not needed for gpt4all local inference)
   LLM_MODEL    = override the default model for the chosen provider
 
 Usage:
-  # OpenAI (default)
-  $env:LLM_PROVIDER = "openai";  $env:LLM_API_KEY = "sk-..."
-  python main.py
-
-  # Gemini
+  # Gemini (default)
   $env:LLM_PROVIDER = "gemini";  $env:LLM_API_KEY = "AIza..."
   $env:LLM_MODEL = "gemini-2.0-flash"   # or gemini-1.5-pro, gemini-2.5-pro-exp-03-25 etc.
-  python main.py
-
-  # Hugging Face Inference API
-  $env:LLM_PROVIDER = "hf";  $env:LLM_API_KEY = "hf_..."
   python main.py
 
   # GPT4All (fully local — no API key needed)
@@ -54,9 +44,7 @@ REPO_DIR = Path(__file__).parent / "data" / "repo"
 
 # Default model for each provider
 MODEL_DEFAULTS: dict[str, str] = {
-    "openai":  "gpt-4o",
-    "gemini":  "gemini-2.0-flash",
-    "hf":      "meta-llama/Meta-Llama-3-8B-Instruct",
+    "gemini":  "gemini-3.1-flash-lite-preview",
     "gpt4all": "Meta-Llama-3-8B-Instruct.Q4_0.gguf",
 }
 
@@ -127,8 +115,6 @@ TOOLS_SCHEMA: list[dict] = [
     }
 ]
 
-# OpenAI / HF-compat tool list
-OPENAI_TOOLS = [{"type": "function", "function": t} for t in TOOLS_SCHEMA]
 
 # ---------------------------------------------------------------------------
 # Helper tools (executed locally — same for every provider)
@@ -214,52 +200,7 @@ class BaseLLMClient(abc.ABC):
         ...
 
 
-# ---------------------------------------------------------------------------
-# Provider: OpenAI
-# ---------------------------------------------------------------------------
 
-class OpenAIClient(BaseLLMClient):
-    """
-    Adapter for the OpenAI Chat Completions API.
-    Uses native function calling for Phase 2 and response_format JSON mode for Phase 3.
-    Install: pip install openai
-    """
-
-    def __init__(self, api_key: str, model: str):
-        from openai import OpenAI  # lazy import
-        self._client = OpenAI(api_key=api_key)
-        self._model  = model
-
-    def complete(self, messages: list[dict]) -> LLMResponse:
-        response = self._client.chat.completions.create(
-            model=self._model,
-            messages=messages,
-            tools=OPENAI_TOOLS,
-            tool_choice="auto",
-        )
-        msg = response.choices[0].message
-        raw: dict[str, Any] = {"role": "assistant", "content": msg.content}
-        tool_calls: list[ToolCall] = []
-
-        if msg.tool_calls:
-            raw["tool_calls"] = [
-                {
-                    "id": tc.id, "type": "function",
-                    "function": {"name": tc.function.name, "arguments": tc.function.arguments},
-                }
-                for tc in msg.tool_calls
-            ]
-            tool_calls = [
-                ToolCall(id=tc.id, name=tc.function.name,
-                         arguments=json.loads(tc.function.arguments))
-                for tc in msg.tool_calls
-            ]
-
-        return LLMResponse(
-            content=msg.content if not tool_calls else None,
-            tool_calls=tool_calls,
-            raw_message=raw,
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -386,87 +327,6 @@ class GeminiClient(BaseLLMClient):
         )
 
 
-# ---------------------------------------------------------------------------
-# Provider: Hugging Face Inference API
-# ---------------------------------------------------------------------------
-
-class HuggingFaceClient(BaseLLMClient):
-    """
-    Adapter for Hugging Face Inference API via huggingface_hub.
-    Install: pip install huggingface_hub
-
-    Switch to HF:
-      $env:LLM_PROVIDER = "hf"
-      $env:LLM_API_KEY  = "hf_..."
-      $env:LLM_MODEL    = "meta-llama/Meta-Llama-3-8B-Instruct"
-    """
-
-    def __init__(self, api_key: str, model: str):
-        from huggingface_hub import InferenceClient  # lazy import
-        self._client = InferenceClient(model=model, token=api_key)
-        self._model  = model
-
-    def _hf_tools(self) -> list[dict]:
-        return [{"type": "function", "function": t} for t in TOOLS_SCHEMA]
-
-    def complete(self, messages: list[dict]) -> LLMResponse:
-        try:
-            response = self._client.chat_completion(
-                messages=messages,
-                tools=self._hf_tools(),
-                tool_choice="auto",
-            )
-            msg = response.choices[0].message
-
-            tool_calls: list[ToolCall] = []
-            if msg.tool_calls:
-                tool_calls = [
-                    ToolCall(
-                        id=tc.id or f"hf_{i}",
-                        name=tc.function.name,
-                        arguments=json.loads(tc.function.arguments)
-                            if isinstance(tc.function.arguments, str)
-                            else tc.function.arguments,
-                    )
-                    for i, tc in enumerate(msg.tool_calls)
-                ]
-                raw_tc = [
-                    {"id": tc.id, "type": "function",
-                     "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
-                    for tc in msg.tool_calls
-                ]
-                return LLMResponse(
-                    content=None,
-                    tool_calls=tool_calls,
-                    raw_message={"role": "assistant", "content": None, "tool_calls": raw_tc},
-                )
-
-            text   = msg.content or ""
-            parsed = _parse_react_tool_calls(text)
-            if parsed:
-                return LLMResponse(
-                    content=None, tool_calls=parsed,
-                    raw_message={"role": "assistant", "content": text},
-                )
-            return LLMResponse(
-                content=text, tool_calls=[],
-                raw_message={"role": "assistant", "content": text},
-            )
-
-        except Exception as e:
-            print(f"  [hf] Tool-calling failed, using ReAct fallback: {e}")
-            return self._complete_react(messages)
-
-    def _complete_react(self, messages: list[dict]) -> LLMResponse:
-        response = self._client.chat_completion(messages=messages)
-        text     = response.choices[0].message.content or ""
-        parsed   = _parse_react_tool_calls(text)
-        return LLMResponse(
-            content=None if parsed else text,
-            tool_calls=parsed,
-            raw_message={"role": "assistant", "content": text},
-        )
-
 
 # ---------------------------------------------------------------------------
 # Provider: GPT4All (fully local, no API key required)
@@ -518,23 +378,18 @@ def create_llm_client() -> BaseLLMClient:
     Create and return the appropriate LLM client.
 
     Environment variables:
-      LLM_PROVIDER  : "openai" (default) | "gemini" | "hf" | "gpt4all"
+      LLM_PROVIDER  : "gemini" (default) | "gpt4all"
       LLM_API_KEY   : API key (not needed for gpt4all)
       LLM_MODEL     : Override the default model for the chosen provider
     """
-    provider = os.environ.get("LLM_PROVIDER", "openai").lower().strip()
+    provider = os.environ.get("LLM_PROVIDER", "gemini").lower().strip()
     api_key  = os.environ.get("LLM_API_KEY", "")
     model    = os.environ.get("LLM_MODEL", MODEL_DEFAULTS.get(provider, ""))
 
     print(f"  Provider : {provider}")
     print(f"  Model    : {model}")
 
-    if provider == "openai":
-        if not api_key:
-            raise EnvironmentError("LLM_API_KEY must be set for provider 'openai'.")
-        return OpenAIClient(api_key=api_key, model=model)
-
-    elif provider == "gemini":
+    if provider == "gemini":
         if not api_key:
             raise EnvironmentError(
                 "LLM_API_KEY must be set for provider 'gemini'.\n"
@@ -542,18 +397,13 @@ def create_llm_client() -> BaseLLMClient:
             )
         return GeminiClient(api_key=api_key, model=model)
 
-    elif provider == "hf":
-        if not api_key:
-            raise EnvironmentError("LLM_API_KEY must be set for provider 'hf'.")
-        return HuggingFaceClient(api_key=api_key, model=model)
-
     elif provider == "gpt4all":
         return GPT4AllClient(model=model)
 
     else:
         raise ValueError(
             f"Unknown LLM_PROVIDER '{provider}'. "
-            "Valid options: openai, gemini, hf, gpt4all"
+            "Valid options: gemini, gpt4all"
         )
 
 
