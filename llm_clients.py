@@ -72,11 +72,6 @@ class GeminiClient(BaseLLMClient):
             ])
         ]
 
-    def _chat_config(self, system: str) -> Any:
-        return self._types.GenerateContentConfig(
-            system_instruction=system,
-            tools=self._tools,
-        )
 
     def complete(self, messages: list[dict]) -> LLMResponse:
         system_msg = next((m["content"] for m in messages if m["role"] == "system"), "")
