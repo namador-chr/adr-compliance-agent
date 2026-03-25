@@ -5,17 +5,17 @@ flowchart TD
 
     C --> D[Read ADR Rules\nread_file adr_path]
     D --> E[Read Code Files\nread_file each .cs file]
-    E --> F[Analysis\nCheck each rule\nagainst the code]
+    E --> F[Analysis\nWrite Markdown analysis\nchecking each rule against code]
 
     F --> G{More ADRs?}
     G -- Yes --> C
-    G -- No --> H[Reflection Step\nReview all results\nfor missed violations\nor false positives]
+    G -- No --> H[Reflection Step\nReview all analyses\nfor accuracy]
 
     H --> I[Re-read code files\nif needed for verification]
-    I --> J[Update results]
+    I --> J[Compile and output\nfinal polished\nMarkdown report]
 
     J --> K[Print Console Report\nCOMPLIANT / NOT COMPLIANT\nper ADR with evidence]
-    K --> L[Save compliance_report.json]
+    K --> L[Save compliance_report.md]
     L --> M([End])
 
     style A fill:#4CAF50,color:#fff
