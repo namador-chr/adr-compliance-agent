@@ -120,15 +120,16 @@ GeminiClient                  GPT4AllClient
 
 ## Expected Output
 
-Instead of strict JSON, the agent now produces a polished, highly readable Markdown report summarizing all compliance findings.
+Markdown report summarizing all compliance findings.
 
 **Example Excerpt (`compliance_report.md`):**
+
 
 ```markdown
 # Architectural Compliance Report
 
 ## Executive Summary
-A comprehensive review of the codebase against established Architectural Decision Records (ADRs) has been completed. The application is **NOT COMPLIANT** with the majority of the reviewed standards. The current implementation suffers from significant RESTful naming violations, improper HTTP status code usage, poor logging practices, insufficient input validation, and a lack of a proper repository layer for data access. Substantial refactoring is required to align the system with the defined architectural standards.
+A comprehensive review of the codebase against established Architectural Decision Records (ADRs) has been completed. The application is **NOT COMPLIANT** with the majority of the reviewed standards...
 
 ---
 
@@ -138,17 +139,16 @@ A comprehensive review of the codebase against established Architectural Decisio
 **Status: NOT COMPLIANT**
 
 *   **Violations:**
-    *   **Resource Naming:** The controller uses a singular noun `api/user` instead of the mandated plural `api/users`.
-    *   **Action Naming:** The `CreateUser` action includes the verb in the route `[HttpPost("CreateUser")]`, violating the rule that prohibits action method names in URLs.
-    *   **Parameter Naming:** All path parameters use `{userId}` rather than the standardized `{id}`.
-*   **Compliant Aspects:** Query parameter naming conventions are adhered to (though none are currently present).
+    *   **Resource Naming:** The controller uses a singular noun `api/user` instead of the mandated plural.
+    *   **Action Naming:** The `CreateUser` action includes the verb in the route, violating URI resource rules.
+    *   **Parameter Naming:** All path parameters use `{userId}` rather than `{id}`.
 
 ### ADR-002: HTTP Status Codes
 **Status: NOT COMPLIANT**
 
 *   **Violations:**
-    *   **Incorrect Status Codes:** The `CreateUser` method returns `200 OK` (must be `201 Created`), and the `Delete` method returns `200 OK` (must be `204 No Content`).
+    *   **Incorrect Status Codes:** `CreateUser` returns `200 OK` (must be `201`), and `Delete` returns `200` (must be `204`).
     *   **Infrastructure:** The application lacks global exception handling middleware.
-    *   **Documentation:** No endpoints utilize `[ProducesResponseType]` attributes to define expected response types.
-*   **Compliant Aspects:** The controller correctly implements `404 Not Found` and `400 Bad Request` scenarios.
+
+... *(Report continues for remaining ADRs)* ...
 ```
