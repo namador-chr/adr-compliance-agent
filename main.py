@@ -1,30 +1,4 @@
 #!/usr/bin/env python3
-"""
-ADR Compliance Agent — LLM-Agnostic Version
-============================================
-Analyzes a C# codebase for compliance with Architecture Decision Records (ADRs).
-
-Architecture: "Reasoning first, Formatting second"
-  Phase 2 — Free Markdown reasoning  (no JSON pressure on the analysis step)
-  Phase 3 — JSON-only formatting call (provider JSON modes + retry loop)
-
-Supported providers (set via environment variables):
-  LLM_PROVIDER = "gemini"   (default) — requires: pip install google-genai
-  LLM_PROVIDER = "gpt4all"            — requires: pip install gpt4all
-
-  LLM_API_KEY  = your API key (not needed for gpt4all local inference)
-  LLM_MODEL    = override the default model for the chosen provider
-
-Usage:
-  # Gemini (default)
-  $env:LLM_PROVIDER = "gemini";  $env:LLM_API_KEY = "AIza..."
-  $env:LLM_MODEL = "gemini-3.1-flash-lite-preview"
-  python main.py
-
-  # GPT4All (fully local — no API key needed)
-  $env:LLM_PROVIDER = "gpt4all"
-  python main.py
-"""
 
 import os
 import json
@@ -200,9 +174,6 @@ class BaseLLMClient(abc.ABC):
         ...
 
 
-
-
-
 # ---------------------------------------------------------------------------
 # Provider: Gemini  (uses the new google-genai SDK — google.generativeai is deprecated)
 # ---------------------------------------------------------------------------
@@ -327,7 +298,6 @@ class GeminiClient(BaseLLMClient):
         )
 
 
-
 # ---------------------------------------------------------------------------
 # Provider: GPT4All (fully local, no API key required)
 # ---------------------------------------------------------------------------
@@ -438,7 +408,7 @@ def run_agent(
                     "content": result,
                 })
                 # Brief pause to respect rate limits
-                print("Waiting 10 seconds...")
+                #print("Waiting 10 seconds...")
                 time.sleep(10)
         elif response.content:
             return response.content
