@@ -125,29 +125,30 @@ Instead of strict JSON, the agent now produces a polished, highly readable Markd
 **Example Excerpt (`compliance_report.md`):**
 
 ```markdown
-# ADR Compliance Review Report
+# Architectural Compliance Report
 
 ## Executive Summary
-This report provides a compliance analysis of the codebase against established Architectural Decision Records (ADRs). The analysis identifies critical non-compliance issues within the `UsersController`...
+A comprehensive review of the codebase against established Architectural Decision Records (ADRs) has been completed. The application is **NOT COMPLIANT** with the majority of the reviewed standards. The current implementation suffers from significant RESTful naming violations, improper HTTP status code usage, poor logging practices, insufficient input validation, and a lack of a proper repository layer for data access. Substantial refactoring is required to align the system with the defined architectural standards.
 
 ---
 
-## ADR-001: RESTful Resource Naming
+## Detailed Compliance Breakdown
+
+### ADR-001: RESTful Resource Naming
 **Status: NOT COMPLIANT**
 
-The `UsersController` consistently violates multiple rules defined in ADR-001.
+*   **Violations:**
+    *   **Resource Naming:** The controller uses a singular noun `api/user` instead of the mandated plural `api/users`.
+    *   **Action Naming:** The `CreateUser` action includes the verb in the route `[HttpPost("CreateUser")]`, violating the rule that prohibits action method names in URLs.
+    *   **Parameter Naming:** All path parameters use `{userId}` rather than the standardized `{id}`.
+*   **Compliant Aspects:** Query parameter naming conventions are adhered to (though none are currently present).
 
-### Violations
+### ADR-002: HTTP Status Codes
+**Status: NOT COMPLIANT**
 
-*   **RULE-001-A (Resource names MUST be lowercase plural nouns):**
-    *   **Violation:** The controller uses `api/user` instead of `api/users`.
-    *   **Code:** `[Route("api/user")]`
-
-*   **RULE-001-D (Identifiers MUST use `{id}`):**
-    *   **Violation:** The application uses `{userId}` throughout the controller instead of the mandated `{id}` parameter.
-    *   **Code:** 
-        ```csharp
-        [HttpGet("{userId}")]
-        [HttpPut("{userId}")]
-        ```
+*   **Violations:**
+    *   **Incorrect Status Codes:** The `CreateUser` method returns `200 OK` (must be `201 Created`), and the `Delete` method returns `200 OK` (must be `204 No Content`).
+    *   **Infrastructure:** The application lacks global exception handling middleware.
+    *   **Documentation:** No endpoints utilize `[ProducesResponseType]` attributes to define expected response types.
+*   **Compliant Aspects:** The controller correctly implements `404 Not Found` and `400 Bad Request` scenarios.
 ```
