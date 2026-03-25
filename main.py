@@ -408,7 +408,6 @@ def run_agent(
                     "content": result,
                 })
                 # Brief pause to respect rate limits
-                #print("Waiting 10 seconds...")
                 time.sleep(10)
         elif response.content:
             return response.content
