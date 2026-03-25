@@ -621,7 +621,7 @@ def main() -> None:
     )
 
     # Phase 4: Report
-    print_report(final_report)
+    #print_report(final_report)
     save_report(final_report)
 
     print("\n✅ ADR Compliance Agent finished.")

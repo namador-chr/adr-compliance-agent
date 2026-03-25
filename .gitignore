@@ -1,0 +1,24 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Agent local outputs
+compliance_report.md
+compliance_report.json
+
+# IDEs and Tools
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
