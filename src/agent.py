@@ -226,13 +226,12 @@ class ComplianceAgent:
     # Agentic loop
     # ------------------------------------------------------------------
 
-    def run(self, query: str | None = None) -> str:
+    def run(self) -> str:
         """Run the compliance agent. Returns the agent's final narrative."""
-        if not query:
-            query = (
-                "Analyze all code files in the repository for ADR compliance. "
-                "List the files, analyze each one, then generate a final report."
-            )
+        query = (
+            "Analyze all code files in the repository for ADR compliance. "
+            "List the files, analyze each one, then generate a final report."
+        )
 
         print("\nStarting compliance analysis agent...")
 
