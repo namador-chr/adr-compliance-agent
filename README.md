@@ -43,7 +43,7 @@ Built as the Capstone Project for the **Ciklum AI Academy** Engineering Track.
 
 ```bash
 git clone <repo-url>
-cd ard-compliance-agent
+cd adr-compliance-agent
 
 pip install -r requirements.txt
 ```

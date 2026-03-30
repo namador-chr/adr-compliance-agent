@@ -1,7 +1,7 @@
 """
 vector_store.py - ChromaDB persistence layer.
 
-Manages two collections (adrs, code) and exposes add/search/count/clear.
+Manages the ADR collection and exposes add/search/count/clear.
 Embeddings are computed externally by EmbeddingService and passed in directly
 so ChromaDB never calls its own embedding logic.
 """
