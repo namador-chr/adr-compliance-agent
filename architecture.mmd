@@ -11,7 +11,7 @@ graph TD
     subgraph Ingestion ["Ingestion  (ingestion.py)"]
         LoadADR["load_adrs()\ndata/adrs/*.md"]
         LoadCode["load_code_files()\ndata/repo/*.cs"]
-        ChunkADR["chunk_document()"]
+        ChunkADR["chunk_document()\nLangChain RecursiveCharacterTextSplitter"]
     end
 
     subgraph Embedding ["Embeddings  (embeddings.py)"]

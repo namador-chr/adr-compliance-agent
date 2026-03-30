@@ -8,6 +8,8 @@ then splits them into overlapping chunks for embedding.
 import pathlib
 from dataclasses import dataclass, field
 
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 SUPPORTED_ADR_EXTENSIONS = {".md"}
 SUPPORTED_CODE_EXTENSIONS = {".cs", ".csproj", ".json", ".xml"}
 
@@ -65,40 +67,22 @@ def load_code_files(data_dir: str) -> list[Document]:
 
 
 def chunk_document(doc: Document, chunk_size: int = 1000, overlap: int = 200) -> list[Document]:
-    """Split a document into overlapping chunks, breaking at newlines where possible."""
-    content = doc.content
+    """Split a document into overlapping chunks using LangChain's RecursiveCharacterTextSplitter."""
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=overlap,
+    )
+    texts = splitter.split_text(doc.content)
 
-    if len(content) <= chunk_size:
+    if not texts:
         return [doc]
 
-    chunks = []
-    start = 0
-    chunk_index = 0
-
-    while start < len(content):
-        end = min(start + chunk_size, len(content))
-
-        # Prefer breaking at a natural newline boundary
-        if end < len(content):
-            last_newline = content.rfind("\n", start, end)
-            if last_newline > start + chunk_size // 2:
-                end = last_newline + 1
-
-        chunk_content = content[start:end].strip()
-        if chunk_content:
-            chunks.append(Document(
-                content=chunk_content,
-                source=doc.source,
-                doc_type=doc.doc_type,
-                metadata={
-                    **doc.metadata,
-                    "chunk_index": chunk_index,
-                    "chunk_start": start,
-                    "chunk_end": end,
-                },
-            ))
-            chunk_index += 1
-
-        start = end - overlap if end < len(content) else end
-
-    return chunks
+    return [
+        Document(
+            content=chunk,
+            source=doc.source,
+            doc_type=doc.doc_type,
+            metadata={**doc.metadata, "chunk_index": i},
+        )
+        for i, chunk in enumerate(texts)
+    ]

@@ -94,6 +94,7 @@ python main.py --output my_report.json
 | LLM             | Gemini 3.1 Flash Lite Preview (`google-genai`)   |
 | Embeddings      | Gemini `gemini-embedding-001`         |
 | Vector store    | ChromaDB (local persistent)         |
+| Text splitting  | LangChain `RecursiveCharacterTextSplitter` |
 | Agent framework | Custom tool-calling loop            |
 | Language        | Python 3.11+                        |
 | Config          | `python-dotenv`                     |
