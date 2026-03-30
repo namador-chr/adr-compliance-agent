@@ -15,7 +15,7 @@ graph TD
     end
 
     subgraph Embedding ["Embeddings  (embeddings.py)"]
-        EmbSvc["EmbeddingService\nGemini text-embedding-004"]
+        EmbSvc["EmbeddingService\nGemini Embeddings (configurable)"]
     end
 
     subgraph Storage ["Vector Store  (vector_store.py)"]
@@ -28,7 +28,7 @@ graph TD
     end
 
     subgraph AnalysisLayer ["Analyzer  (analyzer.py)"]
-        Analyze["analyze()\nGemini gemini-2.0-flash"]
+        Analyze["analyze()\nGemini LLM (configurable)"]
         Reflect["reflect()\nSelf-critique"]
     end
 
@@ -42,7 +42,7 @@ graph TD
     LoadADR --> ChunkADR --> EmbSvc --> Chroma --> ColADR
     LoadCode --> CodeMem
 
-    Run --> GeminiLLM["Gemini LLM\nTool-Calling Loop"]
+    Run --> GeminiLLM["Gemini LLM (configurable)\nTool-Calling Loop"]
     GeminiLLM --> T1 & T2 & T3
 
     T1 --> CodeMem
