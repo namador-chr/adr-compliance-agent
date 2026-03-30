@@ -1,24 +1,13 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Virtual environments
 .env
-.venv
-env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
 venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Agent local outputs
-compliance_report.md
-compliance_report.json
-
-# IDEs and Tools
-.vscode/
-.idea/
-*.swp
-*.swo
-.DS_Store
+chroma_db/
+*.json.output

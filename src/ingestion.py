@@ -1,0 +1,104 @@
+"""
+ingestion.py - File loading and chunking.
+
+Loads ADR markdown files and C# source files from the data directory,
+then splits them into overlapping chunks for embedding.
+"""
+
+import pathlib
+from dataclasses import dataclass, field
+
+SUPPORTED_ADR_EXTENSIONS = {".md"}
+SUPPORTED_CODE_EXTENSIONS = {".cs", ".csproj", ".json", ".xml"}
+
+
+@dataclass
+class Document:
+    content: str
+    source: str       # relative path from data_dir
+    doc_type: str     # 'adr' or 'code'
+    metadata: dict = field(default_factory=dict)
+
+
+def load_adrs(data_dir: str) -> list[Document]:
+    """Load all ADR markdown files from data/adrs/."""
+    adrs_path = pathlib.Path(data_dir) / "adrs"
+    documents = []
+
+    if not adrs_path.exists():
+        return documents
+
+    for file_path in sorted(adrs_path.rglob("*")):
+        if file_path.suffix.lower() in SUPPORTED_ADR_EXTENSIONS:
+            content = file_path.read_text(encoding="utf-8", errors="ignore")
+            if content.strip():
+                documents.append(Document(
+                    content=content,
+                    source=str(file_path.relative_to(data_dir)),
+                    doc_type="adr",
+                    metadata={"filename": file_path.name, "path": str(file_path)},
+                ))
+
+    return documents
+
+
+def load_code_files(data_dir: str) -> list[Document]:
+    """Load all C# source files from data/repo/."""
+    repo_path = pathlib.Path(data_dir) / "repo"
+    documents = []
+
+    if not repo_path.exists():
+        return documents
+
+    for file_path in sorted(repo_path.rglob("*")):
+        if file_path.suffix.lower() in SUPPORTED_CODE_EXTENSIONS:
+            content = file_path.read_text(encoding="utf-8", errors="ignore")
+            if content.strip():
+                documents.append(Document(
+                    content=content,
+                    source=str(file_path.relative_to(data_dir)),
+                    doc_type="code",
+                    metadata={"filename": file_path.name, "path": str(file_path)},
+                ))
+
+    return documents
+
+
+def chunk_document(doc: Document, chunk_size: int = 1000, overlap: int = 200) -> list[Document]:
+    """Split a document into overlapping chunks, breaking at newlines where possible."""
+    content = doc.content
+
+    if len(content) <= chunk_size:
+        return [doc]
+
+    chunks = []
+    start = 0
+    chunk_index = 0
+
+    while start < len(content):
+        end = min(start + chunk_size, len(content))
+
+        # Prefer breaking at a natural newline boundary
+        if end < len(content):
+            last_newline = content.rfind("\n", start, end)
+            if last_newline > start + chunk_size // 2:
+                end = last_newline + 1
+
+        chunk_content = content[start:end].strip()
+        if chunk_content:
+            chunks.append(Document(
+                content=chunk_content,
+                source=doc.source,
+                doc_type=doc.doc_type,
+                metadata={
+                    **doc.metadata,
+                    "chunk_index": chunk_index,
+                    "chunk_start": start,
+                    "chunk_end": end,
+                },
+            ))
+            chunk_index += 1
+
+        start = end - overlap if end < len(content) else end
+
+    return chunks
