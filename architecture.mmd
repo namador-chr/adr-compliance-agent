@@ -1,24 +1,53 @@
-flowchart TD
-    A([Start]) --> B[Discover Files\nlist_files ADR dir\nlist_files repo dir]
+graph TD
+    CLI["CLI — main.py\n--reingest / --output"]
+    Agent["ComplianceAgent\nagent.py"]
+    Setup["setup()\nIngestion + Indexing"]
+    Run["run()\nAgentic Loop"]
 
-    B --> C{For each ADR}
+    CLI --> Agent
+    Agent --> Setup
+    Agent --> Run
 
-    C --> D[Read ADR Rules\nread_file adr_path]
-    D --> E[Read Code Files\nread_file each .cs file]
-    E --> F[Analysis\nWrite Markdown analysis\nchecking each rule against code]
+    subgraph Ingestion ["Ingestion  (ingestion.py)"]
+        LoadADR["load_adrs()\ndata/adrs/*.md"]
+        LoadCode["load_code_files()\ndata/repo/*.cs"]
+        ChunkADR["chunk_document()"]
+    end
 
-    F --> G{More ADRs?}
-    G -- Yes --> C
-    G -- No --> H[Reflection Step\nReview all analyses\nfor accuracy]
+    subgraph Embedding ["Embeddings  (embeddings.py)"]
+        EmbSvc["EmbeddingService\nGemini text-embedding-004"]
+    end
 
-    H --> I[Re-read code files\nif needed for verification]
-    I --> J[Compile and output\nfinal polished\nMarkdown report]
+    subgraph Storage ["Vector Store  (vector_store.py)"]
+        Chroma["ChromaDB\nPersistentClient"]
+        ColADR["Collection: adrs"]
+    end
 
-    J --> K[Print Console Report\nCOMPLIANT / NOT COMPLIANT\nper ADR with evidence]
-    K --> L[Save compliance_report.md]
-    L --> M([End])
+    subgraph Memory ["In-Memory  (agent.py)"]
+        CodeMem["_code_docs\ndict of full file contents"]
+    end
 
-    style A fill:#4CAF50,color:#fff
-    style M fill:#4CAF50,color:#fff
-    style H fill:#FF9800,color:#fff
-    style F fill:#2196F3,color:#fff
+    subgraph AnalysisLayer ["Analyzer  (analyzer.py)"]
+        Analyze["analyze()\nGemini gemini-2.0-flash"]
+        Reflect["reflect()\nSelf-critique"]
+    end
+
+    subgraph Tools ["Agent Tools  (agent.py)"]
+        T1["list_code_files"]
+        T2["analyze_file"]
+        T3["generate_final_report"]
+    end
+
+    Setup --> LoadADR & LoadCode
+    LoadADR --> ChunkADR --> EmbSvc --> Chroma --> ColADR
+    LoadCode --> CodeMem
+
+    Run --> GeminiLLM["Gemini LLM\nTool-Calling Loop"]
+    GeminiLLM --> T1 & T2 & T3
+
+    T1 --> CodeMem
+    T2 --> CodeMem
+    T2 --> ColADR
+    T2 --> Analyze --> Reflect --> T2
+
+    T3 --> Report["Final Report\n(console + report.json)"]

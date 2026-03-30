@@ -1,0 +1,207 @@
+{
+  "repo\\Controllers\\UsersController.cs": {
+    "filename": "repo/Controllers/UsersController.cs",
+    "overall_status": "non-compliant",
+    "compliance_score": 40,
+    "violations": [
+      {
+        "adr_reference": "ADR-001-restful-resource-naming.md",
+        "description": "RULE-001-A: Controller route must use plural noun path.",
+        "location": "UsersController class attribute [Route(\"api/user\")]",
+        "severity": "medium"
+      },
+      {
+        "adr_reference": "ADR-001-restful-resource-naming.md",
+        "description": "RULE-001-C: Action method names must not appear in the URL path.",
+        "location": "CreateUser method attribute [HttpPost(\"CreateUser\")]",
+        "severity": "medium"
+      },
+      {
+        "adr_reference": "ADR-001-restful-resource-naming.md",
+        "description": "RULE-001-D: Identifiers in path segments must use {id} as the parameter name.",
+        "location": "GetById, Update, Delete method attributes using {userId}",
+        "severity": "medium"
+      },
+      {
+        "adr_reference": "ADR-004-input-validation.md",
+        "description": "RULE-004-B: Missing [ApiController] attribute which enables automatic model state validation.",
+        "location": "UsersController class",
+        "severity": "high"
+      }
+    ],
+    "compliant_aspects": [
+      "Constructor injection used for IUserService",
+      "Controller delegates business logic to service layer",
+      "Uses HTTP verbs correctly for standard actions"
+    ],
+    "recommendations": [
+      "Change [Route(\"api/user\")] to [Route(\"api/users\")]",
+      "Remove 'CreateUser' from the [HttpPost] attribute to comply with RESTful naming",
+      "Update all route templates from {userId} to {id}",
+      "Add [ApiController] attribute to the class to enable automatic model validation",
+      "Remove explicit ModelState checks if [ApiController] is added"
+    ],
+    "reflection": {
+      "confidence": 90,
+      "missed_issues": [
+        "Possible lack of standard HTTP response codes for error cases given the missing [ApiController] attribute",
+        "Missing documentation on whether status codes conform to ADR-005 requirements"
+      ],
+      "quality_notes": "The analysis is highly accurate and provides clear, actionable feedback mapping specific code locations to identified ADRs.",
+      "final_verdict": "The UsersController is fundamentally non-compliant with RESTful standards and requires structural updates to routes and controller metadata."
+    }
+  },
+  "repo\\DTOs\\CreateUserRequest.cs": {
+    "filename": "repo/DTOs/CreateUserRequest.cs",
+    "overall_status": "non-compliant",
+    "compliance_score": 0,
+    "violations": [
+      {
+        "adr_reference": "ADR-004-input-validation.md",
+        "description": "RULE-004-A: Request model/DTO classes MUST have Data Annotation validation attributes on properties.",
+        "location": "CreateUserRequest class",
+        "severity": "high"
+      },
+      {
+        "adr_reference": "ADR-004-input-validation.md",
+        "description": "RULE-004-D: String inputs MUST declare [MaxLength] or [StringLength] constraints.",
+        "location": "Name, Email, and Role properties",
+        "severity": "medium"
+      }
+    ],
+    "compliant_aspects": [],
+    "recommendations": [
+      "Apply [Required] attribute to all properties (Name, Email, Role) to ensure they are present.",
+      "Apply [MaxLength] or [StringLength] attributes to Name, Email, and Role to comply with string length constraints.",
+      "Apply [EmailAddress] attribute to the Email property for format validation."
+    ],
+    "reflection": {
+      "confidence": 95,
+      "missed_issues": [
+        "Potential missing [RegularExpression] attribute for password complexity requirements if not handled elsewhere",
+        "Lack of [DataType] attributes for properties like Email if standard Data Annotations are insufficient"
+      ],
+      "quality_notes": "The analysis is highly accurate and directly maps code deficiencies to specific ADR requirements; however, it assumes a standard C# MVC/WebAPI environment which is consistent with the filename path.",
+      "final_verdict": "The file is severely non-compliant with standard input validation architectural patterns and requires immediate remediation to meet project security standards."
+    }
+  },
+  "repo\\DTOs\\UpdateUserRequest.cs": {
+    "filename": "repo/DTOs/UpdateUserRequest.cs",
+    "overall_status": "compliant",
+    "compliance_score": 100,
+    "violations": [],
+    "compliant_aspects": [
+      "Used Data Annotations for all properties",
+      "Applied [Required] attributes to all fields",
+      "Applied [MaxLength] or [EmailAddress] constraints to all string fields as per ADR-004-D"
+    ],
+    "recommendations": [],
+    "reflection": {
+      "confidence": 85,
+      "missed_issues": [
+        "Analysis lacks verification of XML documentation comments required for DTO public APIs",
+        "No check for property naming conventions (PascalCase) defined in style guidelines",
+        "Absence of validation for nullable reference types configuration"
+      ],
+      "quality_notes": "The analysis is concise and addresses technical constraints well, but it focuses exclusively on data annotations and fails to audit documentation or broader architectural standards.",
+      "final_verdict": "The DTO is fully compliant with data constraint requirements, though it lacks verification against documentation and code style standards."
+    }
+  },
+  "repo\\Models\\User.cs": {
+    "filename": "repo/Models/User.cs",
+    "overall_status": "compliant",
+    "compliance_score": 100,
+    "violations": [],
+    "compliant_aspects": [
+      "The class follows standard domain model structure.",
+      "The class maintains a clear separation from HTTP or infrastructure concerns."
+    ],
+    "recommendations": [],
+    "reflection": {
+      "confidence": 75,
+      "missed_issues": [
+        "Lack of validation regarding adherence to specific ADR-mandated base classes or interfaces (e.g., IAggregateRoot, IEntity).",
+        "Missing check for proper data annotations or attribute usage for ORM mapping consistency.",
+        "No verification of documentation or XML comments compliance."
+      ],
+      "quality_notes": "The analysis is technically accurate but superficial, as it lacks verification against specific project-defined ADR constraints or coding standards.",
+      "final_verdict": "The file structure is healthy and follows general best practices, though further verification against specific architectural constraints is recommended."
+    }
+  },
+  "repo\\Program.cs": {
+    "filename": "repo/Program.cs",
+    "overall_status": "compliant",
+    "compliance_score": 100,
+    "violations": [],
+    "compliant_aspects": [
+      "Used dependency injection for service registration using an interface abstraction (IUserService).",
+      "Configured standard ASP.NET Core pipeline components correctly.",
+      "No business logic or violations of architectural layers introduced in the entry point."
+    ],
+    "recommendations": [],
+    "reflection": {
+      "confidence": 85,
+      "missed_issues": [
+        "Lack of validation regarding logging configuration compliance",
+        "Missing assessment of environment-specific configuration overrides (appsettings.json vs environment variables)",
+        "No verification of global error handling middleware implementation"
+      ],
+      "quality_notes": "The analysis is technically sound but superficial, focusing on high-level patterns while ignoring security and operational robustness typically required in an entry point file.",
+      "final_verdict": "The file maintains strong adherence to basic architectural principles and dependency injection standards."
+    }
+  },
+  "repo\\Services\\IUserService.cs": {
+    "filename": "repo/Services/IUserService.cs",
+    "overall_status": "compliant",
+    "compliance_score": 100,
+    "violations": [],
+    "compliant_aspects": [
+      "Follows interface abstraction pattern (ADR-005)",
+      "Clean service interface definition without leaking HTTP concerns (ADR-005-C)",
+      "Uses appropriate DTOs for request models (ADR-005-C)"
+    ],
+    "recommendations": [],
+    "reflection": {
+      "confidence": 85,
+      "missed_issues": [
+        "Missing validation of XML documentation requirements per ADR-002",
+        "Potential lack of asynchronous suffix consistency check",
+        "Missing namespace organizational alignment check against ADR-001"
+      ],
+      "quality_notes": "The analysis is concise and correctly identifies core architectural patterns, but it is too narrow in scope and fails to audit documentation or broader project-wide naming conventions.",
+      "final_verdict": "The file maintains strong architectural adherence to core service design principles, ensuring a clean separation of concerns."
+    }
+  },
+  "repo\\Services\\UserService.cs": {
+    "filename": "repo/Services/UserService.cs",
+    "overall_status": "non-compliant",
+    "compliance_score": 40,
+    "violations": [
+      {
+        "adr_reference": "ADR-005-separation-of-concerns.md",
+        "description": "RULE-005-D: Data access logic resides directly in the Service class instead of a Repository.",
+        "location": "UserService.cs (Fields _store and methods accessing it)",
+        "severity": "high"
+      }
+    ],
+    "compliant_aspects": [
+      "Service adheres to the business logic layer role by receiving DTOs and returning domain models/tasks",
+      "No HTTP abstractions (HttpContext/HttpRequest) used in the service layer",
+      "Dependencies follow a standard C# namespace and interface pattern"
+    ],
+    "recommendations": [
+      "Refactor data access operations (Dictionary _store) into a dedicated Repository class (e.g., IUserRepository) and inject it into the UserService constructor.",
+      "Remove static data stores from the service class to ensure proper lifecycle management and dependency injection."
+    ],
+    "reflection": {
+      "confidence": 90,
+      "missed_issues": [
+        "Lack of unit test coverage verification",
+        "Missing check for proper transaction handling which often accompanies data access logic",
+        "Dependency injection lifetime scope (e.g., scoped vs transient) is not addressed in the recommendations"
+      ],
+      "quality_notes": "The analysis is highly accurate and provides clear, actionable remediation steps; it correctly identifies the architectural violation regarding separation of concerns.",
+      "final_verdict": "The file requires significant refactoring to align with ADR-005, specifically regarding the extraction of data access logic into a repository layer."
+    }
+  }
+}

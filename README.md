@@ -1,154 +1,123 @@
 # ADR Compliance Agent
 
-An AI agent that analyzes a C# codebase for compliance with Architecture Decision Records (ADRs).  
-Now **LLM-agnostic** — works with Gemini or GPT4All via environment variables.
+An AI-Agentic system that checks C# .NET source code for compliance with Architectural Decision Records (ADRs).
+Built as the Capstone Project for the **Ciklum AI Academy** Engineering Track.
 
-## Project Structure
+---
 
-```text
-adr-compliance-agent/
-├── config.py                  # Environment config and paths
-├── tools.py                   # File I/O tools and LLM tool schemas
-├── prompts.py                 # System instructions for LLM prompt phases
-├── llm_clients.py             # Provider-specific SDKs and adapters
-├── main.py                    # Python agent (entry point orchestrator)
-├── architecture.mmd           # Mermaid diagram of agent workflow
-├── compliance_report.md       # Generated after running the agent
-└── data/
-    ├── adrs/                  # Architecture Decision Records
-    │   ├── ADR-001-restful-resource-naming.md
-    │   ├── ADR-002-http-status-codes.md
-    │   ├── ADR-003-structured-logging.md
-    │   ├── ADR-004-input-validation.md
-    │   └── ADR-005-separation-of-concerns.md
-    └── repo/                  # Sample C# API with intentional ADR violations
-        ├── Program.cs
-        ├── Controllers/UsersController.cs
-        ├── Services/IUserService.cs
-        ├── Services/UserService.cs
-        ├── Models/User.cs
-        └── DTOs/
-            ├── CreateUserRequest.cs
-            └── UpdateUserRequest.cs
+## What it does
+
+1. **Ingests** ADR markdown files, chunks them, embeds them with Gemini, and stores them in ChromaDB.
+2. **Loads** C# source files into memory — full content, no chunking — so the LLM always sees the complete file.
+3. **Retrieves** the most relevant ADR rules for each code file via semantic search over the ADR index.
+4. **Analyses** each file using Gemini — producing a structured compliance report with violations and recommendations.
+5. **Reflects** — the LLM self-critiques its own analysis for quality and missed issues.
+6. **Orchestrates** the entire flow via a Gemini tool-calling agent loop (list → analyze → report).
+
+---
+
+## Project structure
+
+```
+.
+├── data/
+│   ├── adrs/           ← place your ADR .md files here
+│   └── repo/           ← place your C# source files here
+├── src/
+│   ├── ingestion.py    ← file loading; chunking for ADRs only
+│   ├── embeddings.py   ← Gemini embedding service
+│   ├── vector_store.py ← ChromaDB (ADR collection only)
+│   ├── analyzer.py     ← LLM compliance analysis + self-reflection
+│   └── agent.py        ← agentic loop with Gemini tool-calling
+├── main.py             ← CLI entry point
+├── architecture.mmd    ← Mermaid architecture diagram
+├── requirements.txt
+└── .env.example
 ```
 
-## Prerequisites
+---
 
-- Python 3.10+
-- An API key for your chosen provider (not required for GPT4All)
+## Setup
 
-## Provider Setup
-
-Install the dependency for your chosen provider, then set the environment variables below.
-
-### Gemini (default)
+### 1. Clone and install dependencies
 
 ```bash
-pip install google-genai
+git clone <repo-url>
+cd ard-compliance-agent-v3
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# macOS/Linux
+source .venv/bin/activate
+
+pip install -r requirements.txt
 ```
 
-```powershell
-$env:LLM_PROVIDER = "gemini"
-$env:LLM_API_KEY  = "AIza..."     # from https://aistudio.google.com/app/apikey
-# Optional: $env:LLM_MODEL = "gemini-2.0-flash"   # or gemini-2.5-flash, gemini-1.5-pro etc.
-python main.py
-```
-
----
-
-### GPT4All (fully local — no API key required)
+### 2. Configure environment
 
 ```bash
-pip install gpt4all
+cp .env.example .env
+# Edit .env and set GEMINI_API_KEY
 ```
 
-```powershell
-$env:LLM_PROVIDER = "gpt4all"
-# Optional: $env:LLM_MODEL = "Meta-Llama-3-8B-Instruct.Q4_0.gguf"
+Key variables:
+
+| Variable | Default | Notes |
+|---|---|---|
+| `GEMINI_API_KEY` | — | Required |
+| `GEMINI_MODEL` | `gemini-3.1-flash-lite-preview` | LLM used for analysis |
+| `GEMINI_EMBEDDING_MODEL` | `gemini-embedding-001` | Embedding model |
+| `LLM_REQUEST_DELAY` | `4` | Seconds between LLM calls — set to `0` on paid tier |
+| `TOP_K_RESULTS` | `5` | ADR chunks retrieved per file |
+
+### 3. Add your data
+
+- Drop ADR markdown files into `data/adrs/`
+- Drop C# source files (`.cs`, `.csproj`, `.json`, `.xml`) into `data/repo/`
+
+---
+
+## Usage
+
+```bash
+# Run full analysis (always writes report.json)
 python main.py
-```
 
-> **Note:** GPT4All will download the model (~4–8 GB) on first run.  
-> GPT4All uses **ReAct-style** text-based tool calling (no native function calling).
+# Force re-ingestion (clears the ADR ChromaDB index and re-embeds)
+python main.py --reingest
+
+# Override the default output filename
+python main.py --output my_report.json
+```
 
 ---
 
-## Environment Variables
+## Technology stack
 
-| Variable       | Default     | Description                                              |
-|----------------|-------------|----------------------------------------------------------|
-| `LLM_PROVIDER` | `gemini`    | Provider: `gemini`, `gpt4all`                            |
-| `LLM_API_KEY`  | _(none)_    | API key for the chosen provider (not needed for gpt4all) |
-| `LLM_MODEL`    | _(per provider)_ | Override the default model for the chosen provider  |
-
-## Default Models
-
-| Provider | Default Model                               |
-|----------|---------------------------------------------|
-| gemini   | `gemini-3.1-flash-lite-preview`                          |
-| gpt4all  | `Meta-Llama-3-8B-Instruct.Q4_0.gguf`       |
-
-## How It Works
-
-### Abstraction Layer
-
-```text
-┌─────────────────────────────────────────────┐
-│              Agent Logic (main.py)          │
-│  analyze_adr()  reflect_on_results()        │
-│              run_agent()                    │
-└──────────────────┬──────────────────────────┘
-                   │ calls  .complete(messages)
-          ┌────────▼────────┐
-          │ BaseLLMClient   │  (abstract interface)
-          └────────┬────────┘
-    ┌──────────────┴──────────────┐
-    ▼                             ▼
-GeminiClient                  GPT4AllClient
-(native FC)                   (ReAct)
-```
-
-- **Native function calling** (Gemini capable models): the LLM requests tool calls in a structured API format.
-- **ReAct fallback** (GPT4All): the LLM emits `TOOL_CALL: {...}` in its text output; the agent parses and executes these.
-
-### Agent Loop (provider-agnostic)
-
-1. **Discover** — `list_files` on ADR and repo directories
-2. **Analyze** — for each ADR: read rules, read code files, write Markdown analysis
-3. **Reflect** — review all analyses and compile a single, polished Markdown report
-4. **Report** — print to console + save `compliance_report.md`
-
-## Expected Output
-
-Markdown report summarizing all compliance findings.
-
-**Example Excerpt (`compliance_report.md`):**
-
-
-```markdown
-# Architectural Compliance Report
-
-## Executive Summary
-A comprehensive review of the codebase against established Architectural Decision Records (ADRs) has been completed. The application is **NOT COMPLIANT** with the majority of the reviewed standards...
+| Component       | Technology                          |
+|-----------------|-------------------------------------|
+| LLM             | Gemini 3.1 Flash Lite Preview (`google-genai`)   |
+| Embeddings      | Gemini `gemini-embedding-001`         |
+| Vector store    | ChromaDB (local persistent)         |
+| Agent framework | Custom tool-calling loop            |
+| Language        | Python 3.11+                        |
+| Config          | `python-dotenv`                     |
 
 ---
 
-## Detailed Compliance Breakdown
+## Architecture
 
-### ADR-001: RESTful Resource Naming
-**Status: NOT COMPLIANT**
+See [architecture.mmd](architecture.mmd) for the full Mermaid diagram.
+High-level flow:
 
-*   **Violations:**
-    *   **Resource Naming:** The controller uses a singular noun `api/user` instead of the mandated plural.
-    *   **Action Naming:** The `CreateUser` action includes the verb in the route, violating URI resource rules.
-    *   **Parameter Naming:** All path parameters use `{userId}` rather than `{id}`.
-
-### ADR-002: HTTP Status Codes
-**Status: NOT COMPLIANT**
-
-*   **Violations:**
-    *   **Incorrect Status Codes:** `CreateUser` returns `200 OK` (must be `201`), and `Delete` returns `200` (must be `204`).
-    *   **Infrastructure:** The application lacks global exception handling middleware.
-
-... *(Report continues for remaining ADRs)* ...
 ```
+CLI → ComplianceAgent
+         ├── setup()  → ADRs: chunk → embed → ChromaDB
+         │              code: load full files into memory
+         └── run()    → Gemini tool-calling loop
+                            ├── list_code_files   (reads memory)
+                            ├── analyze_file × N  (memory + ChromaDB ADR search + LLM + reflection)
+                            └── generate_final_report
+```
+
+**Why code files are not embedded:** compliance analysis requires the full file context. Chunking and embedding code would only surface fragments to the LLM, making it impossible to assess patterns that span the whole file (e.g. overall class structure, DI registration, error handling strategy). ADRs, by contrast, are rule definitions where retrieval of the most relevant subset is exactly the right approach.
