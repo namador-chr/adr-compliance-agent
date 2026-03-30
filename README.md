@@ -65,11 +65,6 @@ Key variables:
 | `LLM_REQUEST_DELAY` | `4` | Seconds between LLM calls — set to `0` on paid tier |
 | `TOP_K_RESULTS` | `5` | ADR chunks retrieved per file |
 
-### 3. Add your data
-
-- Drop ADR markdown files into `data/adrs/`
-- Drop C# source files (`.cs`, `.csproj`, `.json`, `.xml`) into `data/repo/`
-
 ---
 
 ## Usage
