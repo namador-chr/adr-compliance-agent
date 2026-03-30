@@ -43,12 +43,7 @@ Built as the Capstone Project for the **Ciklum AI Academy** Engineering Track.
 
 ```bash
 git clone <repo-url>
-cd ard-compliance-agent-v3
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS/Linux
-source .venv/bin/activate
+cd ard-compliance-agent
 
 pip install -r requirements.txt
 ```
